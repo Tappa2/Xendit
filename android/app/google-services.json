@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "827054415420",
+    "project_id": "sarisari-store-c63ee",
+    "storage_bucket": "sarisari-store-c63ee.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827054415420:android:be236e032236ec03dbed39",
+        "android_client_info": {
+          "package_name": "com.clothing.app.clothing_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAcHes8zsBufAD1uHo4yxZS8wK9RDhbvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:827054415420:android:43cb919d02c65105dbed39",
+        "android_client_info": {
+          "package_name": "com.example.sari_sari_store"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAcHes8zsBufAD1uHo4yxZS8wK9RDhbvQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

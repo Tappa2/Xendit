@@ -1,0 +1,33 @@
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+build/
+android/local.properties
+functions/node_modules/
+*.jks
+*.keystore
+key.properties
+
+# IDE and temporary logs
+.idea/
+*.iml
+flutter_*.log
+
+# Old backups
+main_before_updates.dart
+pubspec_before_icon.yaml
+
+# Generated files
+.dart_tool/
+build/
+android/local.properties
+functions/node_modules/
+
+# Secrets and signing keys
+.env
+.env.*
+!.env.example
+*.jks
+*.keystore
+key.properties
+service-account*.json
