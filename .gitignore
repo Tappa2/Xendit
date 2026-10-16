@@ -31,3 +31,25 @@ functions/node_modules/
 *.keystore
 key.properties
 service-account*.json
+
+# Local backups
+*.backup
+*.backup-*
+*.before-*
+*.bak
+
+# Secrets
+.env
+.env.*
+! .env.example
+service-account*.json
+*service-account*.json
+
+# Local build outputs
+build/
+.dart_tool/
+
+# Additional project backups
+*.backup*
+*.before-*
+*.backup-*

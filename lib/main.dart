@@ -5,8 +5,11 @@ import 'package:firebase_ai/firebase_ai.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import 'firebase_options.dart';
+
+import 'package:flutter_svg/flutter_svg.dart';
 
 // STREETWEAR voucher Cloud Functions
 class VoucherService {
@@ -30,7 +33,7 @@ class VoucherService {
   }
 }
 
-const primaryOrange = Color(0xFFE5E5E5);
+const primaryOrange = Color(0xFFFF8A00);
 const darkBg = Color(0xFF080808);
 const cardBg = Color(0xFF171717);
 const textDark = Color(0xFFF5F5F5);
@@ -54,10 +57,13 @@ class StreetwearApp extends StatelessWidget {
       theme: ThemeData(
         useMaterial3: true,
         scaffoldBackgroundColor: darkBg,
+        brightness: Brightness.dark,
         colorScheme: ColorScheme.fromSeed(
           seedColor: primaryOrange,
+          brightness: Brightness.dark,
           primary: primaryOrange,
           surface: cardBg,
+          onSurface: textDark,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: cardBg,
@@ -274,10 +280,7 @@ class _StoreShellState extends State<StoreShell> {
       });
     } catch (_) {
       if (mounted) {
-        showMessage(
-          context,
-          'Hindi makuha ang voucher status. Suriin ang Cloud Functions.',
-        );
+        showMessage(context, 'Hindi available ang voucher sa ngayon.');
       }
     }
   }
@@ -294,10 +297,7 @@ class _StoreShellState extends State<StoreShell> {
       if (mounted) showMessage(context, 'Naipadala ang voucher claim request.');
     } catch (_) {
       if (mounted)
-        showMessage(
-          context,
-          'Hindi ma-claim ang voucher. Suriin ang cooldown at Functions.',
-        );
+        showMessage(context, 'Hindi ma-claim ang voucher sa ngayon.');
       await _refreshVoucherStatus();
     } finally {
       if (mounted) setState(() => voucherLoading = false);
@@ -950,45 +950,233 @@ class _StoreShellState extends State<StoreShell> {
                     'Payment Method',
                     style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13),
                   ),
-                  const SizedBox(height: 8),
+                  const SizedBox(height: 10),
                   Row(
                     children: [
                       Expanded(
-                        child: RadioListTile<String>(
-                          title: const Text(
-                            'COD',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () => setSheetState(
+                            () => paymentMethod = 'Cash on Delivery',
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: paymentMethod == 'Cash on Delivery'
+                                  ? primaryOrange.withOpacity(0.10)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: paymentMethod == 'Cash on Delivery'
+                                    ? primaryOrange
+                                    : Colors.grey.shade300,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                Icon(
+                                  Icons.local_shipping_outlined,
+                                  color: paymentMethod == 'Cash on Delivery'
+                                      ? primaryOrange
+                                      : textGray,
+                                  size: 27,
+                                ),
+                                const SizedBox(height: 5),
+                                const Text(
+                                  'COD',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          value: 'Cash on Delivery',
-                          groupValue: paymentMethod,
-                          activeColor: primaryOrange,
-                          contentPadding: EdgeInsets.zero,
-                          onChanged: (val) =>
-                              setSheetState(() => paymentMethod = val!),
                         ),
                       ),
+                      const SizedBox(width: 8),
                       Expanded(
-                        child: RadioListTile<String>(
-                          title: const Text(
-                            'GCash',
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.bold,
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () =>
+                              setSheetState(() => paymentMethod = 'GCash'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: paymentMethod == 'GCash'
+                                  ? const Color(0xFFEAF4FF)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: paymentMethod == 'GCash'
+                                    ? const Color(0xFF007DFF)
+                                    : Colors.grey.shade300,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/images/gcash_logo.svg',
+                                  width: 78,
+                                  height: 36,
+                                  fit: BoxFit.contain,
+                                ),
+                                const SizedBox(height: 5),
+                                const Text(
+                                  'GCash',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
                             ),
                           ),
-                          value: 'GCash',
-                          groupValue: paymentMethod,
-                          activeColor: primaryOrange,
-                          contentPadding: EdgeInsets.zero,
-                          onChanged: (val) =>
-                              setSheetState(() => paymentMethod = val!),
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: InkWell(
+                          borderRadius: BorderRadius.circular(12),
+                          onTap: () =>
+                              setSheetState(() => paymentMethod = 'Maya'),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              vertical: 12,
+                              horizontal: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: paymentMethod == 'Maya'
+                                  ? const Color(0xFFE7F8EF)
+                                  : Colors.transparent,
+                              border: Border.all(
+                                color: paymentMethod == 'Maya'
+                                    ? const Color(0xFF00A86B)
+                                    : Colors.grey.shade300,
+                                width: 1.5,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Column(
+                              children: [
+                                SvgPicture.asset(
+                                  'assets/images/maya_logo.svg',
+                                  width: 78,
+                                  height: 36,
+                                  fit: BoxFit.contain,
+                                ),
+                                const SizedBox(height: 5),
+                                const Text(
+                                  'Maya',
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    fontSize: 12,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ),
                       ),
                     ],
                   ),
+                  if (paymentMethod == 'GCash' || paymentMethod == 'Maya') ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: cardBg,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: Colors.grey.shade300),
+                      ),
+                      child: Column(
+                        children: [
+                          Text(
+                            '$paymentMethod QR Preview',
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w800,
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          Container(
+                            width: 154,
+                            height: 154,
+                            padding: const EdgeInsets.all(8),
+                            color: Colors.white,
+                            child: GridView.builder(
+                              physics: const NeverScrollableScrollPhysics(),
+                              padding: EdgeInsets.zero,
+                              itemCount: 441,
+                              gridDelegate:
+                                  const SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: 21,
+                                    mainAxisSpacing: 0,
+                                    crossAxisSpacing: 0,
+                                  ),
+                              itemBuilder: (context, index) {
+                                final row = index ~/ 21;
+                                final col = index % 21;
+
+                                bool finder(int top, int left) {
+                                  final rr = row - top;
+                                  final cc = col - left;
+                                  if (rr < 0 || rr > 6 || cc < 0 || cc > 6) {
+                                    return false;
+                                  }
+                                  return rr == 0 ||
+                                      rr == 6 ||
+                                      cc == 0 ||
+                                      cc == 6 ||
+                                      (rr >= 2 &&
+                                          rr <= 4 &&
+                                          cc >= 2 &&
+                                          cc <= 4);
+                                }
+
+                                final inFinder =
+                                    finder(0, 0) ||
+                                    finder(0, 14) ||
+                                    finder(14, 0);
+                                final dark =
+                                    inFinder ||
+                                    ((row * 17 + col * 11 + row * col) % 7 < 3);
+
+                                return ColoredBox(
+                                  color: dark ? Colors.black : Colors.white,
+                                );
+                              },
+                            ),
+                          ),
+                          const SizedBox(height: 10),
+                          const Text(
+                            'SAMPLE QR • SCHOOL PROJECT',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(
+                              fontWeight: FontWeight.w800,
+                              fontSize: 11,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          const Text(
+                            'Preview only. This is not a scannable payment QR. '
+                            'No payment is collected or verified.',
+                            textAlign: TextAlign.center,
+                            style: TextStyle(fontSize: 11, color: textGray),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                   const SizedBox(height: 10),
                   Container(
                     padding: const EdgeInsets.all(12),
@@ -1011,7 +1199,7 @@ class _StoreShellState extends State<StoreShell> {
                           const SizedBox(height: 4),
                           Row(
                             children: [
-                              const Expanded(
+                              Expanded(
                                 child: Text(
                                   '$voucherPercent% OFF Voucher',
                                   style: TextStyle(
@@ -1059,9 +1247,9 @@ class _StoreShellState extends State<StoreShell> {
                         Navigator.pop(sheetContext, true);
                     },
                     child: Text(
-                      paymentMethod == 'GCash'
-                          ? 'PAY VIA GCASH'
-                          : 'PLACE ORDER (COD)',
+                      paymentMethod == 'Cash on Delivery'
+                          ? 'PLACE ORDER (COD)'
+                          : 'CONTINUE WITH $paymentMethod',
                     ),
                   ),
                 ],
@@ -1073,6 +1261,36 @@ class _StoreShellState extends State<StoreShell> {
     );
 
     if (confirmed != true) return;
+
+    // School-project demo only. No real payment is processed.
+    if (paymentMethod == 'GCash' || paymentMethod == 'Maya') {
+      final confirmed = await showDialog<bool>(
+        context: context,
+        barrierDismissible: false,
+        builder: (dialogContext) => AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(18),
+          ),
+          title: Text('$paymentMethod Payment'),
+          content: Text(
+            'Continue placing your order using $paymentMethod? '
+            'Payment will remain pending until verified by a real payment provider.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(dialogContext, false),
+              child: const Text('CANCEL'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(dialogContext, true),
+              child: const Text('CONTINUE'),
+            ),
+          ],
+        ),
+      );
+
+      if (confirmed != true) return;
+    }
 
     // GCash payment remains pending until a real payment provider verifies it.
     setState(() => placingOrder = true);
@@ -1088,17 +1306,68 @@ class _StoreShellState extends State<StoreShell> {
           )
           .toList();
 
-      final result = await VoucherService.createOrder({
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        throw Exception('Please sign in before placing an order.');
+      }
+
+      // School-project demo only.
+      // Prices and voucher discounts are client-calculated.
+      // Stock is not deducted by this demo checkout.
+      final subtotal = rawCartTotal.toDouble();
+      final discount = (rawCartTotal * voucherPercent / 100).toDouble();
+      final total = (subtotal - discount).clamp(0.0, double.infinity);
+
+      final orderData = <String, dynamic>{
+        'userId': user.uid,
+        'userEmail': user.email ?? '',
         'customerName': name.text.trim(),
         'phone': phone.text.trim(),
         'shippingAddress': address.text.trim(),
         'items': items,
+        'subtotal': subtotal,
+        'discount': discount,
+        'total': total,
+        'voucherApplied': voucherPercent > 0,
+        'voucherType': voucherType,
+        'voucherPercent': voucherPercent,
+        'status': 'Pending',
+        'demoMode': true,
         'paymentMethod': paymentMethod,
+        'paymentStatus': (paymentMethod == 'GCash' || paymentMethod == 'Maya')
+            ? 'Pending'
+            : 'Cash on Delivery',
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final orderRef = await FirebaseFirestore.instance
+          .collection('orders')
+          .add(orderData);
+
+      // DEMO ONLY: simulate order confirmation and delivery.
+      await Future.delayed(const Duration(seconds: 10));
+
+      await orderRef.update({
+        'status': 'Confirmed',
+        'updatedAt': FieldValue.serverTimestamp(),
       });
 
-      if (result['success'] != true) {
-        throw Exception('Server did not confirm the order.');
-      }
+      final isSimulatedPayment =
+          paymentMethod == 'GCash' || paymentMethod == 'Maya';
+
+      await orderRef.update({
+        'status': 'To Receive',
+        'paymentStatus': isSimulatedPayment
+            ? 'Successful (SIMULATED)'
+            : 'Cash on Delivery',
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+
+      final result = <String, dynamic>{
+        'success': true,
+        'orderId': orderRef.id,
+      };
 
       if (!mounted) return;
       setState(() {
@@ -1107,13 +1376,17 @@ class _StoreShellState extends State<StoreShell> {
       });
       showMessage(
         context,
-        paymentMethod == 'GCash'
-            ? 'Order created. GCash payment is pending verification.'
+        (paymentMethod == 'GCash' || paymentMethod == 'Maya')
+            ? 'Order created. $paymentMethod payment is pending confirmation.'
             : 'Order placed successfully (Cash on Delivery)!',
       );
       await _refreshVoucherStatus();
-    } catch (_) {
-      showMessage(context, 'Something went wrong. Please try again.');
+    } catch (e, st) {
+      debugPrint('CHECKOUT ERROR: $e');
+      debugPrintStack(stackTrace: st);
+      if (mounted) {
+        showMessage(context, 'Checkout failed. Check terminal logs.');
+      }
     } finally {
       if (mounted) setState(() => placingOrder = false);
     }
@@ -2151,7 +2424,7 @@ Customer message: $text
                 const SizedBox(height: 4),
                 Row(
                   children: [
-                    const Expanded(
+                    Expanded(
                       child: Text(
                         '$voucherPercent% OFF Voucher',
                         style: TextStyle(
@@ -2203,24 +2476,34 @@ Customer message: $text
 
   Widget _buildOrders() {
     final user = FirebaseAuth.instance.currentUser!;
+
     return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
       stream: FirebaseFirestore.instance
           .collection('orders')
           .where('userId', isEqualTo: user.uid)
           .snapshots(),
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (snapshot.hasError) {
+          return const Center(child: Text('Unable to load orders.'));
+        }
+
+        if (!snapshot.hasData) {
           return const Center(
             child: CircularProgressIndicator(color: primaryOrange),
           );
+        }
+
         final docs = snapshot.data!.docs;
-        if (docs.isEmpty)
+
+        if (docs.isEmpty) {
           return const Center(
             child: Text(
               'No previous orders found.',
               style: TextStyle(color: textGray),
             ),
           );
+        }
+
         return ListView(
           padding: const EdgeInsets.all(16),
           children: [
@@ -2231,12 +2514,18 @@ Customer message: $text
             const SizedBox(height: 12),
             ...docs.map((doc) {
               final d = doc.data();
+              final status = (d['status'] ?? 'Pending').toString();
+              final rating = d['rating'] is num
+                  ? (d['rating'] as num).toInt()
+                  : 0;
+
               return Container(
-                margin: const EdgeInsets.only(bottom: 10),
-                padding: const EdgeInsets.all(12),
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: cardBg,
                   borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: borderLight),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -2245,7 +2534,8 @@ Customer message: $text
                       children: [
                         Expanded(
                           child: Text(
-                            'Order #${doc.id.substring(0, 6)} (${d['paymentMethod'] ?? 'COD'})',
+                            'Order #${doc.id.substring(0, 6)} '
+                            '(${d['paymentMethod'] ?? 'COD'})',
                             style: const TextStyle(
                               fontWeight: FontWeight.bold,
                               fontSize: 12,
@@ -2253,7 +2543,7 @@ Customer message: $text
                           ),
                         ),
                         Text(
-                          d['status'] ?? 'Pending',
+                          status,
                           style: const TextStyle(
                             color: primaryOrange,
                             fontWeight: FontWeight.bold,
@@ -2262,7 +2552,7 @@ Customer message: $text
                         ),
                       ],
                     ),
-                    const Divider(height: 16),
+                    const Divider(height: 20),
                     Text(
                       money(parsePrice(d['total'])),
                       style: const TextStyle(
@@ -2270,6 +2560,177 @@ Customer message: $text
                         fontSize: 15,
                       ),
                     ),
+                    if (status == 'To Receive') ...[
+                      const SizedBox(height: 12),
+                      const Row(
+                        children: [
+                          Icon(
+                            Icons.check_circle,
+                            color: Colors.green,
+                            size: 20,
+                          ),
+                          SizedBox(width: 8),
+                          Expanded(
+                            child: Text(
+                              'Delivered successfully! (Demo)',
+                              style: TextStyle(
+                                color: Colors.green,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          icon: const Icon(Icons.star),
+                          label: const Text('RATE ORDER'),
+                          onPressed: () async {
+                            final reviewController = TextEditingController();
+                            int selectedRating = 5;
+
+                            final result = await showDialog<Map<String, dynamic>>(
+                              context: context,
+                              builder: (dialogContext) {
+                                return StatefulBuilder(
+                                  builder: (context, setDialogState) {
+                                    return AlertDialog(
+                                      title: const Text('Rate Your Order'),
+                                      content: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        children: [
+                                          const Text(
+                                            'How was your shopping experience?',
+                                          ),
+                                          const SizedBox(height: 12),
+                                          Row(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: List.generate(5, (index) {
+                                              final star = index + 1;
+                                              return IconButton(
+                                                onPressed: () {
+                                                  setDialogState(() {
+                                                    selectedRating = star;
+                                                  });
+                                                },
+                                                icon: Icon(
+                                                  star <= selectedRating
+                                                      ? Icons.star
+                                                      : Icons.star_border,
+                                                  color: primaryOrange,
+                                                  size: 30,
+                                                ),
+                                              );
+                                            }),
+                                          ),
+                                          Text('$selectedRating out of 5 stars'),
+                                          const SizedBox(height: 12),
+                                          TextField(
+                                            controller: reviewController,
+                                            maxLines: 3,
+                                            maxLength: 300,
+                                            decoration: const InputDecoration(
+                                              hintText: 'Write a review (optional)',
+                                              border: OutlineInputBorder(),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                      actions: [
+                                        TextButton(
+                                          onPressed: () =>
+                                              Navigator.pop(dialogContext),
+                                          child: const Text('CANCEL'),
+                                        ),
+                                        ElevatedButton(
+                                          onPressed: () {
+                                            Navigator.pop(dialogContext, {
+                                              'rating': selectedRating,
+                                              'review':
+                                                  reviewController.text.trim(),
+                                            });
+                                          },
+                                          child: const Text('SUBMIT RATING'),
+                                        ),
+                                      ],
+                                    );
+                                  },
+                                );
+                              },
+                            );
+
+                            final review = reviewController.text.trim();
+                            reviewController.dispose();
+
+                            if (result == null || !context.mounted) return;
+
+                            try {
+                              final stars = result['rating'] as int;
+
+                              // Follow the published Firestore status transitions.
+                              await doc.reference.update({
+                                'status': 'To Rate',
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              });
+
+                              await doc.reference.update({
+                                'status': 'Completed',
+                                'rating': stars,
+                                'review': review,
+                                'ratedAt': FieldValue.serverTimestamp(),
+                                'updatedAt': FieldValue.serverTimestamp(),
+                              });
+
+                              if (context.mounted) {
+                                showMessage(
+                                  context,
+                                  'Thank you for your $stars-star rating!',
+                                );
+                              }
+                            } catch (e, st) {
+                              debugPrint('RATING ERROR: $e');
+                              debugPrintStack(stackTrace: st);
+                              if (context.mounted) {
+                                showMessage(
+                                  context,
+                                  'Could not save rating. Check terminal logs.',
+                                );
+                              }
+                            }
+                          },
+                        ),
+                      ),
+                    ],
+                    if (status == 'Completed') ...[
+                      const SizedBox(height: 10),
+                      Row(
+                        children: [
+                          const Text(
+                            'Your rating: ',
+                            style: TextStyle(color: textGray),
+                          ),
+                          ...List.generate(
+                            5,
+                            (index) => Icon(
+                              index < rating ? Icons.star : Icons.star_border,
+                              color: primaryOrange,
+                              size: 20,
+                            ),
+                          ),
+                          Text(' $rating/5'),
+                        ],
+                      ),
+                      if ((d['review'] ?? '').toString().isNotEmpty) ...[
+                        const SizedBox(height: 6),
+                        Text(
+                          d['review'].toString(),
+                          style: const TextStyle(color: textGray),
+                        ),
+                      ],
+                    ],
                   ],
                 ),
               );
@@ -2288,8 +2749,9 @@ Customer message: $text
         Container(
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
-            color: textDark,
+            color: cardBg,
             borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: borderLight),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -2309,7 +2771,7 @@ Customer message: $text
               ),
               Text(
                 user.email ?? '',
-                style: const TextStyle(color: Colors.white60, fontSize: 12),
+                style: const TextStyle(color: textGray, fontSize: 12),
               ),
             ],
           ),
