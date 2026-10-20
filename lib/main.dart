@@ -1,3 +1,7 @@
+import 'package:http/http.dart' as http;
+
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -10,28 +14,6 @@ import 'package:url_launcher/url_launcher.dart';
 import 'firebase_options.dart';
 
 import 'package:flutter_svg/flutter_svg.dart';
-
-// STREETWEAR voucher Cloud Functions
-class VoucherService {
-  static final FirebaseFunctions _functions = FirebaseFunctions.instance;
-
-  static Future<Map<String, dynamic>> getVoucherStatus() async {
-    final result = await _functions.httpsCallable('getVoucherStatus').call();
-    return Map<String, dynamic>.from(result.data as Map);
-  }
-
-  static Future<Map<String, dynamic>> claimVoucher() async {
-    final result = await _functions.httpsCallable('claimVoucher').call();
-    return Map<String, dynamic>.from(result.data as Map);
-  }
-
-  static Future<Map<String, dynamic>> createOrder(
-    Map<String, dynamic> order,
-  ) async {
-    final result = await _functions.httpsCallable('createOrder').call(order);
-    return Map<String, dynamic>.from(result.data as Map);
-  }
-}
 
 const primaryOrange = Color(0xFFFF8A00);
 const darkBg = Color(0xFF080808);
@@ -247,61 +229,11 @@ class _StoreShellState extends State<StoreShell> {
   String search = '';
   String category = 'All';
   bool placingOrder = false;
-  int voucherPercent = 0;
-  int availableVoucherPercent = 0;
-  String? voucherType;
-  int? nextEligibleAt;
-  bool voucherLoading = false;
-
-  bool get voucherClaimed => voucherPercent > 0;
 
   @override
   void initState() {
     super.initState();
     _seedProductsIfNeeded();
-    _refreshVoucherStatus();
-  }
-
-  Future<void> _refreshVoucherStatus() async {
-    try {
-      final status = await VoucherService.getVoucherStatus();
-      if (!mounted) return;
-
-      setState(() {
-        final active = status['activeVoucher'] == true;
-        voucherPercent = active
-            ? (status['claimablePercent'] as num? ?? 0).toInt()
-            : 0;
-        availableVoucherPercent = status['canClaim'] == true
-            ? (status['claimablePercent'] as num? ?? 0).toInt()
-            : 0;
-        voucherType = active ? status['voucherType'] as String? : null;
-        nextEligibleAt = (status['nextEligibleAt'] as num?)?.toInt();
-      });
-    } catch (_) {
-      if (mounted) {
-        showMessage(context, 'Hindi available ang voucher sa ngayon.');
-      }
-    }
-  }
-
-  Future<void> _claimVoucher() async {
-    if (voucherLoading || voucherClaimed || availableVoucherPercent == 0) {
-      return;
-    }
-
-    setState(() => voucherLoading = true);
-    try {
-      await VoucherService.claimVoucher();
-      await _refreshVoucherStatus();
-      if (mounted) showMessage(context, 'Naipadala ang voucher claim request.');
-    } catch (_) {
-      if (mounted)
-        showMessage(context, 'Hindi ma-claim ang voucher sa ngayon.');
-      await _refreshVoucherStatus();
-    } finally {
-      if (mounted) setState(() => voucherLoading = false);
-    }
   }
 
   Future<void> _seedProductsIfNeeded() async {
@@ -812,7 +744,7 @@ class _StoreShellState extends State<StoreShell> {
   int get cartCount => cart.values.fold(0, (sum, line) => sum + line.quantity);
   num get rawCartTotal =>
       cart.values.fold<num>(0, (sum, line) => sum + line.subtotal);
-  num get cartTotal => rawCartTotal * (100 - voucherPercent) / 100;
+  num get cartTotal => rawCartTotal;
 
   void addToCart(Product product, String size, String color) {
     final key = '${product.id}_${size}_${color}';
@@ -1186,39 +1118,6 @@ class _StoreShellState extends State<StoreShell> {
                     ),
                     child: Column(
                       children: [
-                        if (voucherClaimed) ...[
-                          Row(
-                            children: [
-                              const Expanded(child: Text('Subtotal')),
-                              Text(
-                                money(rawCartTotal),
-                                style: const TextStyle(color: textGray),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 4),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  '$voucherPercent% OFF Voucher',
-                                  style: TextStyle(
-                                    color: primaryOrange,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                '-${money(rawCartTotal * voucherPercent / 100)}',
-                                style: const TextStyle(
-                                  color: primaryOrange,
-                                  fontWeight: FontWeight.bold,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const Divider(height: 12),
-                        ],
                         Row(
                           children: [
                             const Expanded(
@@ -1312,11 +1211,11 @@ class _StoreShellState extends State<StoreShell> {
       }
 
       // School-project demo only.
-      // Prices and voucher discounts are client-calculated.
+      // Prices are client-calculated for this school-project demo.
       // Stock is not deducted by this demo checkout.
       final subtotal = rawCartTotal.toDouble();
-      final discount = (rawCartTotal * voucherPercent / 100).toDouble();
-      final total = (subtotal - discount).clamp(0.0, double.infinity);
+      const discount = 0.0;
+      final total = subtotal;
 
       final orderData = <String, dynamic>{
         'userId': user.uid,
@@ -1328,9 +1227,6 @@ class _StoreShellState extends State<StoreShell> {
         'subtotal': subtotal,
         'discount': discount,
         'total': total,
-        'voucherApplied': voucherPercent > 0,
-        'voucherType': voucherType,
-        'voucherPercent': voucherPercent,
         'status': 'Pending',
         'demoMode': true,
         'paymentMethod': paymentMethod,
@@ -1341,33 +1237,75 @@ class _StoreShellState extends State<StoreShell> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
+      // Create a Xendit test invoice for e-wallet checkout.
+      String? invoiceId;
+      String? invoiceUrl;
+
+      if (paymentMethod == 'GCash' || paymentMethod == 'Maya') {
+        debugPrint('XENDIT DEBUG: GCash/Maya branch entered');
+        final idToken = await user.getIdToken();
+        debugPrint(
+          'XENDIT DEBUG: Firebase token available: ${idToken != null && idToken.isNotEmpty}',
+        );
+
+        if (idToken == null || idToken.isEmpty) {
+          throw Exception('Please sign in again before paying.');
+        }
+
+        debugPrint('XENDIT DEBUG: Sending POST to Render');
+        final response = await http
+            .post(
+              Uri.parse(
+                'https://streetwear-payment-server.onrender.com/create-invoice',
+              ),
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer $idToken',
+              },
+              body: jsonEncode({'amount': total, 'email': user.email ?? ''}),
+            )
+            .timeout(const Duration(seconds: 90));
+
+        debugPrint('XENDIT DEBUG: HTTP ${response.statusCode}');
+        debugPrint('XENDIT DEBUG: Response body: ${response.body}');
+        final invoiceData = jsonDecode(response.body) as Map<String, dynamic>;
+
+        if (response.statusCode != 200 ||
+            invoiceData['success'] != true ||
+            invoiceData['invoiceUrl'] == null) {
+          throw Exception(
+            invoiceData['error'] ?? 'Could not create Xendit test invoice.',
+          );
+        }
+
+        invoiceId = invoiceData['invoiceId']?.toString();
+        invoiceUrl = invoiceData['invoiceUrl']?.toString();
+
+        orderData['invoiceId'] = invoiceId;
+        orderData['invoiceUrl'] = invoiceUrl;
+        orderData['paymentProvider'] = 'Xendit Test Mode';
+      }
+
       final orderRef = await FirebaseFirestore.instance
           .collection('orders')
           .add(orderData);
 
-      // DEMO ONLY: simulate order confirmation and delivery.
-      await Future.delayed(const Duration(seconds: 10));
+      // Keep the order pending until payment is independently verified.
+      if (invoiceUrl != null) {
+        final opened = await launchUrl(
+          Uri.parse(invoiceUrl),
+          mode: LaunchMode.externalApplication,
+        );
+        if (!opened) {
+          debugPrint('Could not open the Xendit invoice URL.');
+        }
+      }
 
-      await orderRef.update({
-        'status': 'Confirmed',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+      // Keep the order pending until it is processed.
+      // Never mark GCash/Maya as paid without real provider verification.
+      // COD also remains pending until the order is processed.
 
-      final isSimulatedPayment =
-          paymentMethod == 'GCash' || paymentMethod == 'Maya';
-
-      await orderRef.update({
-        'status': 'To Receive',
-        'paymentStatus': isSimulatedPayment
-            ? 'Successful (SIMULATED)'
-            : 'Cash on Delivery',
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
-
-      final result = <String, dynamic>{
-        'success': true,
-        'orderId': orderRef.id,
-      };
+      final result = <String, dynamic>{'success': true, 'orderId': orderRef.id};
 
       if (!mounted) return;
       setState(() {
@@ -1380,12 +1318,11 @@ class _StoreShellState extends State<StoreShell> {
             ? 'Order created. $paymentMethod payment is pending confirmation.'
             : 'Order placed successfully (Cash on Delivery)!',
       );
-      await _refreshVoucherStatus();
     } catch (e, st) {
       debugPrint('CHECKOUT ERROR: $e');
       debugPrintStack(stackTrace: st);
       if (mounted) {
-        showMessage(context, 'Checkout failed. Check terminal logs.');
+        showMessage(context, 'Checkout failed: ${e.toString()}');
       }
     } finally {
       if (mounted) setState(() => placingOrder = false);
@@ -1777,92 +1714,6 @@ Customer message: $text
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Shopee / TikTok Style New User Voucher Banner
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(16),
-                      decoration: BoxDecoration(
-                        gradient: const LinearGradient(
-                          colors: [Color(0xFFEE4D2D), Color(0xFFFF7337)],
-                        ),
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(
-                            Icons.local_activity,
-                            color: Colors.white,
-                            size: 40,
-                          ),
-                          const SizedBox(width: 14),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                const Text(
-                                  'NEW USER EXCLUSIVE',
-                                  style: TextStyle(
-                                    color: Colors.white70,
-                                    fontSize: 10,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                                Text(
-                                  'Claim $availableVoucherPercent% OFF Voucher',
-                                  style: TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 16,
-                                    fontWeight: FontWeight.w900,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                Text(
-                                  voucherClaimed
-                                      ? 'Your $voucherPercent% voucher is active.'
-                                      : availableVoucherPercent > 0
-                                      ? 'Tap to claim your voucher.'
-                                      : 'Check back when your cooldown ends.',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontSize: 11,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: Colors.white,
-                              foregroundColor: primaryOrange,
-                              minimumSize: const Size(80, 36),
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                              ),
-                            ),
-                            onPressed:
-                                voucherLoading ||
-                                    voucherClaimed ||
-                                    availableVoucherPercent == 0
-                                ? null
-                                : _claimVoucher,
-                            child: Text(
-                              voucherLoading
-                                  ? '...'
-                                  : voucherClaimed
-                                  ? 'ACTIVE'
-                                  : availableVoucherPercent == 0
-                                  ? 'WAIT'
-                                  : 'CLAIM',
-                              style: const TextStyle(
-                                fontSize: 12,
-                                fontWeight: FontWeight.w900,
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 14),
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(18),
@@ -2033,7 +1884,7 @@ Customer message: $text
   }
 
   void showProductDetails(Product product) {
-    String size = product.sizes.first;
+    String size = product.sizes.isNotEmpty ? product.sizes.first : 'One Size';
     String color = product.colors.isNotEmpty ? product.colors.first : 'Default';
 
     showModalBottomSheet(
@@ -2046,7 +1897,7 @@ Customer message: $text
       builder: (sheetContext) => StatefulBuilder(
         builder: (context, setSheetState) => SafeArea(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(16),
             child: SingleChildScrollView(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -2066,17 +1917,20 @@ Customer message: $text
                   ClipRRect(
                     borderRadius: BorderRadius.circular(14),
                     child: AspectRatio(
-                      aspectRatio: 1.2,
+                      aspectRatio: 0.92,
                       child: product.imageUrl.isEmpty
                           ? const ProductPlaceholder()
-                          : Image.network(product.imageUrl, fit: BoxFit.cover),
+                          : Image.network(
+                              product.imageUrl,
+                              fit: BoxFit.contain,
+                            ),
                     ),
                   ),
                   const SizedBox(height: 14),
                   Text(
                     product.name,
                     style: const TextStyle(
-                      fontSize: 20,
+                      fontSize: 23,
                       fontWeight: FontWeight.w900,
                     ),
                   ),
@@ -2084,7 +1938,7 @@ Customer message: $text
                   Text(
                     money(product.price),
                     style: const TextStyle(
-                      fontSize: 18,
+                      fontSize: 22,
                       fontWeight: FontWeight.w900,
                       color: primaryOrange,
                     ),
@@ -2159,7 +2013,7 @@ Customer message: $text
                           style: OutlinedButton.styleFrom(
                             foregroundColor: primaryOrange,
                             side: const BorderSide(color: primaryOrange),
-                            minimumSize: const Size.fromHeight(52),
+                            minimumSize: const Size.fromHeight(54),
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
                             ),
@@ -2411,39 +2265,6 @@ Customer message: $text
           ),
           child: Column(
             children: [
-              if (voucherClaimed) ...[
-                Row(
-                  children: [
-                    const Expanded(child: Text('Subtotal')),
-                    Text(
-                      money(rawCartTotal),
-                      style: const TextStyle(color: textGray),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    Expanded(
-                      child: Text(
-                        '$voucherPercent% OFF Voucher',
-                        style: TextStyle(
-                          color: primaryOrange,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ),
-                    Text(
-                      '-${money(rawCartTotal * voucherPercent / 100)}',
-                      style: const TextStyle(
-                        color: primaryOrange,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  ],
-                ),
-                const Divider(height: 14),
-              ],
               Row(
                 children: [
                   const Expanded(
@@ -2626,14 +2447,17 @@ Customer message: $text
                                               );
                                             }),
                                           ),
-                                          Text('$selectedRating out of 5 stars'),
+                                          Text(
+                                            '$selectedRating out of 5 stars',
+                                          ),
                                           const SizedBox(height: 12),
                                           TextField(
                                             controller: reviewController,
                                             maxLines: 3,
                                             maxLength: 300,
                                             decoration: const InputDecoration(
-                                              hintText: 'Write a review (optional)',
+                                              hintText:
+                                                  'Write a review (optional)',
                                               border: OutlineInputBorder(),
                                             ),
                                           ),
@@ -2649,8 +2473,8 @@ Customer message: $text
                                           onPressed: () {
                                             Navigator.pop(dialogContext, {
                                               'rating': selectedRating,
-                                              'review':
-                                                  reviewController.text.trim(),
+                                              'review': reviewController.text
+                                                  .trim(),
                                             });
                                           },
                                           child: const Text('SUBMIT RATING'),
@@ -3061,7 +2885,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: password,
                   obscureText: hidePassword,
-                  decoration: const InputDecoration(labelText: 'Password'),
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    suffixIcon: IconButton(
+                      tooltip: hidePassword ? 'Show password' : 'Hide password',
+                      onPressed: () =>
+                          setState(() => hidePassword = !hidePassword),
+                      icon: Icon(
+                        hidePassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                    ),
+                  ),
                 ),
                 Align(
                   alignment: Alignment.centerRight,
@@ -3117,6 +2951,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final name = TextEditingController();
   final email = TextEditingController();
   final password = TextEditingController();
+  bool hidePassword = true;
   bool loading = false;
 
   Future<void> register() async {
@@ -3137,7 +2972,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
             'email': email.text.trim(),
             'createdAt': FieldValue.serverTimestamp(),
           });
-      if (mounted) Navigator.pop(context);
+      await FirebaseAuth.instance.signOut();
+      if (mounted) {
+        showMessage(context, 'Account created! Please sign in.');
+        Navigator.pop(context);
+      }
     } on FirebaseAuthException catch (e) {
       if (mounted) showMessage(context, e.message ?? 'Error');
     } finally {
@@ -3146,45 +2985,56 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('CREATE ACCOUNT')),
-    body: SafeArea(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(22),
-        child: Form(
-          key: formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text(
-                'Join Us Today',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
-              ),
-              const SizedBox(height: 20),
-              TextFormField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Full Name'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: email,
-                decoration: const InputDecoration(labelText: 'Email Address'),
-              ),
-              const SizedBox(height: 12),
-              TextFormField(
-                controller: password,
-                obscureText: true,
-                decoration: const InputDecoration(labelText: 'Password'),
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton(
-                onPressed: loading ? null : register,
-                child: const Text('CREATE ACCOUNT'),
-              ),
-            ],
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(22),
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Join Us Today',
+                  style: TextStyle(fontSize: 24, fontWeight: FontWeight.w900),
+                ),
+                const SizedBox(height: 20),
+                TextFormField(
+                  controller: name,
+                  decoration: const InputDecoration(labelText: 'Full Name'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: email,
+                  decoration: const InputDecoration(labelText: 'Email Address'),
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: password,
+                  obscureText: hidePassword,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    suffixIcon: IconButton(
+                      tooltip: hidePassword ? 'Show password' : 'Hide password',
+                      onPressed: () =>
+                          setState(() => hidePassword = !hidePassword),
+                      icon: Icon(
+                        hidePassword ? Icons.visibility_off : Icons.visibility,
+                      ),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton(
+                  onPressed: loading ? null : register,
+                  child: const Text('CREATE ACCOUNT'),
+                ),
+              ],
+            ),
           ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
