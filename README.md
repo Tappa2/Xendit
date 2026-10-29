@@ -1,18 +1,34 @@
-# clothing_app
+# Streetwear App
 
-A new Flutter project.
+A Flutter-based streetwear e-commerce application.
 
-## Getting Started
+## Features
+- Browse clothing products
+- View product details
+- Shopping cart and checkout
+- Firebase integration
+- Xendit payment integration
 
-This project is a starting point for a Flutter application.
+## Requirements
+- Flutter SDK
+- Dart SDK
+- Internet connection
 
-A few resources to get you started if this is your first Flutter project:
+## Installation
+1. Clone the repository:
+   git clone https://github.com/Tappa2/Xendit.git
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+2. Install dependencies:
+   flutter pub get
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
-# streetwear-flutter
+3. Run the app:
+   flutter run
+
+## Build APK
+flutter build apk --release
+
+APK output:
+build/app/outputs/flutter-apk/app-release.apk
+
+## Repository
+https://github.com/Tappa2/Xendit
